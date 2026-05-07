@@ -441,6 +441,16 @@ const categorySearchKeywords = {
  'breakfast': '早餐'
 };
 
+// 根据菜品名获取分类信息和搜索关键词
+function getFoodCategory(food) {
+ const cat = foodCategoryMap[food] || 'sichuan';
+ return {
+  category: cat,
+  catName: categoryNames[cat] || '美食',
+  searchKeyword: categorySearchKeywords[cat] || '美食'
+ };
+}
+
 let currentLocation = null;
 let currentLocationName = '';
 
@@ -705,10 +715,17 @@ function navigateToStore(index) {
  }
  
  const [lng, lat] = store.location.split(',');
- const navUrl = `https://uri.amap.com/navigation?to=${lng},${lat},${encodeURIComponent(store.name)}&mode=car&callnative=1`;
+ const isWechat = /MicroMessenger/i.test(navigator.userAgent);
  
- // 尝试直接打开导航，如果失败则打开地图页面
+ if (isWechat) {
+ // 微信内：跳高德H5地图导航页
+ const h5Url = `https://m.amap.com/navi/?dest=${lng},${lat},${encodeURIComponent(store.name)}&hideRouteIcon=1&key=${amapKey}`;
+ window.location.href = h5Url;
+ } else {
+ // 非微信：用高德URI唤APP导航，带callnative
+ const navUrl = `https://uri.amap.com/navigation?to=${lng},${lat},${encodeURIComponent(store.name)}&mode=car&callnative=1`;
  window.location.href = navUrl;
+ }
 }
 
 // 复制到剪贴板并提示
@@ -739,36 +756,45 @@ function openAmapSearch(keyword) {
  const cityCode={'南充':'0817','成都':'028','重庆':'023','北京':'010','上海':'021','广州':'020','深圳':'0755','西安':'029','长沙':'0731','武汉':'027','昆明':'0871','贵阳':'0851'};
  const cc=cityCode[currentCity]||'028';
  const url = `https://m.amap.com/search/mapview/keywords/${encodeURIComponent(keyword)}/city/${cc}`;
- window.open(url,'_blank');
+ window.location.href = url;
 }
 
 // 地图搜索更多店铺
 btnMapNearby.addEventListener('click', () => {
- const keyword = currentFood + ' ' + currentCity;
+ const catInfo = getFoodCategory(currentFood);
+ const keyword = catInfo.searchKeyword;
  openAmapApp(keyword);
 });
 
-// 地图搜索附近餐厅 - 唤起高德地图APP
+// 地图搜索附近餐厅
 btnMapSearch.addEventListener('click', () => {
- const keyword = currentFood + ' ' + currentCity;
+ const catInfo = getFoodCategory(currentFood);
+ const keyword = catInfo.searchKeyword;
  openAmapApp(keyword);
 });
 
-// 唤起高德地图APP搜索，失败则回退H5
+// 唤起高德地图 - 微信内跳H5，非微信唤APP
 function openAmapApp(keyword) {
- // 先尝试唤起高德APP
- const appUrl = `androidamap://search?keyword=${encodeURIComponent(keyword)}&src=吃饭救星`;
- const h5Url = `https://m.amap.com/search/mapview/keywords/${encodeURIComponent(keyword)}/city/${getCityCode()}`;
+ const isWechat = /MicroMessenger/i.test(navigator.userAgent);
  
- // 尝试唤起APP
+ if (isWechat) {
+ // 微信内：直接跳高德H5地图搜索
+ const cityCode={'南充':'0817','成都':'028','重庆':'023','北京':'010','上海':'021','广州':'020','深圳':'0755','西安':'029','长沙':'0731','武汉':'027','昆明':'0871','贵阳':'0851'};
+ const cc = cityCode[currentCity] || '028';
+ const h5Url = `https://m.amap.com/search/mapview/keywords/${encodeURIComponent(keyword)}/city/${cc}`;
+ window.location.href = h5Url;
+ } else {
+ // 非微信：先尝试唤起高德APP，失败回退H5
+ const appUrl = `androidamap://search?keyword=${encodeURIComponent(keyword)}&src=吃饭救星`;
+ const cityCode={'南充':'0817','成都':'028','重庆':'023','北京':'010','上海':'021','广州':'020','深圳':'0755','西安':'029','长沙':'0731','武汉':'027','昆明':'0871','贵阳':'0851'};
+ const cc = cityCode[currentCity] || '028';
+ const h5Url = `https://m.amap.com/search/mapview/keywords/${encodeURIComponent(keyword)}/city/${cc}`;
  const start = Date.now();
  window.location.href = appUrl;
- // 如果2秒内没有跳转（APP没装），回退H5
  setTimeout(() => {
-  if (Date.now() - start < 2000) {
-   window.open(h5Url, '_blank');
-  }
+ if (Date.now() - start < 2000) { window.location.href = h5Url; }
  }, 1500);
+ }
 }
 
 function getCityCode() {
@@ -776,48 +802,48 @@ function getCityCode() {
  return cc[currentCity] || '028';
 }
 
-// 美团外卖 - 唤APP > 跳H5搜索 > 复制
+// 美团外卖 - 微信内跳H5搜索，非微信唤APP
 btnCopyMeituan.addEventListener('click', () => {
  const food = currentFood;
- // 方案1：唤起美团APP
- const appUrl = `imeituan://www.meituan.com/search?query=${encodeURIComponent(food)}`;
- // 方案2：美团外卖H5搜索页（微信里能打开，可能需要登录）
- const h5Url = `https://h5.waimai.meituan.com/waimai/mindex/search?keyword=${encodeURIComponent(food)}`;
+ const catInfo = getFoodCategory(food);
+ // 美团搜分类词比搜菜名结果更多（搜"川菜"比搜"宫保鸡丁"好找店）
+ const searchKeyword = catInfo.searchKeyword;
+ const h5Url = `https://h5.waimai.meituan.com/waimai/mindex/search?keyword=${encodeURIComponent(searchKeyword)}`;
+ const appUrl = `imeituan://www.meituan.com/search?query=${encodeURIComponent(searchKeyword)}`;
  
- // 判断是否微信浏览器
  const isWechat = /MicroMessenger/i.test(navigator.userAgent);
  if(isWechat){
-  // 微信内：直接跳H5搜索页（微信拦截APP链接，不浪费时间）
-  window.open(h5Url, '_blank');
+ // 微信内：直接跳H5搜索页（用location.href，window.open被微信拦截）
+ window.location.href = h5Url;
  } else {
-  // 非微信：先唤APP，失败跳H5
-  const start = Date.now();
-  window.location.href = appUrl;
-  setTimeout(() => {
-   if(Date.now() - start < 2500){ window.open(h5Url, '_blank'); }
-  }, 2000);
+ // 非微信：先唤APP，失败跳H5
+ const start = Date.now();
+ window.location.href = appUrl;
+ setTimeout(() => {
+ if(Date.now() - start < 2500){ window.location.href = h5Url; }
+ }, 2000);
  }
 });
 
-// 饿了么 - 唤APP > 跳H5搜索 > 复制
+// 饿了么 - 微信内跳H5搜索，非微信唤APP
 btnCopyEle.addEventListener('click', () => {
  const food = currentFood;
- // 方案1：唤起饿了么APP
- const appUrl = `eleme://home?searchKeyword=${encodeURIComponent(food)}`;
- // 方案2：饿了么H5搜索页
- const h5Url = `https://m.ele.me/search?keyword=${encodeURIComponent(food)}`;
+ const catInfo = getFoodCategory(food);
+ const searchKeyword = catInfo.searchKeyword;
+ const h5Url = `https://m.ele.me/search?keyword=${encodeURIComponent(searchKeyword)}`;
+ const appUrl = `eleme://home?searchKeyword=${encodeURIComponent(searchKeyword)}`;
  
  const isWechat = /MicroMessenger/i.test(navigator.userAgent);
  if(isWechat){
-  // 微信内：直接跳H5搜索页
-  window.open(h5Url, '_blank');
+ // 微信内：直接跳H5搜索页
+ window.location.href = h5Url;
  } else {
-  // 非微信：先唤APP，失败跳H5
-  const start = Date.now();
-  window.location.href = appUrl;
-  setTimeout(() => {
-   if(Date.now() - start < 2500){ window.open(h5Url, '_blank'); }
-  }, 2000);
+ // 非微信：先唤APP，失败跳H5
+ const start = Date.now();
+ window.location.href = appUrl;
+ setTimeout(() => {
+ if(Date.now() - start < 2500){ window.location.href = h5Url; }
+ }, 2000);
  }
 });
 
