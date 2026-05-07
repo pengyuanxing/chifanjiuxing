@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+ <title>吃饭救星 - 全国美食随机推荐</title>
+ <meta property="og:title" content="吃饭救星 - 选择困难症的终极解药">
+ <meta property="og:description" content="随机推荐美食，定位附近餐厅，一键点外卖！川渝美食为主，覆盖全国。">
+ <meta property="og:type" content="website">
+ <style>
+ * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+ :root {
+ --primary-color: #FF9F43;
+ --primary-dark: #e8903a;
+ --dark-bg: #1a1a2e;
+ --panel-bg: rgba(255, 255, 255, 0.95);
+ --text-color: #333;
+ --text-secondary: #666;
+ --text-muted: #999;
+ --shadow-color: rgba(255, 159, 67, 0.2);
+ }
+ body.lunch { --primary-color: #FF9F43; --shadow-color: rgba(255, 159, 67, 0.25); }
+ body.afternoon { --primary-color: #FF6B9D; --shadow-color: rgba(255, 107, 157, 0.25); }
+ body.dinner { --primary-color: #EE5A52; --shadow-color: rgba(238, 90, 82, 0.25); }
+ body {
+ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+ min-height: 100vh;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ padding: 16px;
+ padding-bottom: 80px;
+ overflow-x: hidden;
+ }
+ /* 背景 */
+ .bg-wrapper {
+ position: fixed;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ z-index: -1;
+ background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+ }
+ body.afternoon .bg-wrapper { background: linear-gradient(135deg, #2d1b3d 0%, #1a1a2e 50%, #2d1b3d 100%); }
+ body.dinner .bg-wrapper { background: linear-gradient(135deg, #1a1a2e 0%, #2d1f1f 50%, #1a1a2e 100%); }
+ /* Hero Banner - AI图片主视觉 */
+ .hero-banner {
+ width: 100%;
+ max-width: 420px;
+ border-radius: 16px;
+ overflow: hidden;
+ margin-bottom: 16px;
+ box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+ }
+ .hero-banner img {
+ width: 100%;
+ display: block;
+ }
+ /* 装饰光晕 */
+ .glow {
+ position: fixed;
+ border-radius: 50%;
+ filter: blur(80px);
+ opacity: 0.15;
+ z-index: -1;
+ pointer-events: none;
+ }
+ .glow-1 { width: 300px; height: 300px; background: var(--primary-color); top: -100px; left: -100px; }
+ .glow-2 { width: 400px; height: 400px; background: var(--primary-color); bottom: -150px; right: -150px; }
+ body.afternoon .glow-1, body.afternoon .glow-2 { background: #FF6B9D; }
+ body.dinner .glow-1, body.dinner .glow-2 { background: #EE5A52; }
+ .container { position: relative; z-index: 1; width: 100%; max-width: 420px; }
+ /* 时段选择器 */
+ .time-selector {
+ display: flex;
+ background: rgba(255, 255, 255, 0.15);
+ border-radius: 16px;
+ padding: 4px;
+ margin-bottom: 16px;
+ backdrop-filter: blur(10px);
+ border: 1px solid rgba(255, 255, 255, 0.1);
+ }
+ .time-tab {
+ flex: 1;
+ padding: 12px 8px;
+ text-align: center;
+ font-size: 14px;
+ font-weight: 600;
+ color: rgba(255, 255, 255, 0.7);
+ cursor: pointer;
+ border-radius: 12px;
+ transition: all 0.3s ease;
+ border: none;
+ background: transparent;
+ }
+ .time-tab.active {
+ background: var(--primary-color);
+ color: white;
+ box-shadow: 0 4px 15px var(--shadow-color);
+ }
+ .time-tab .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+ /* 主面板 */
+ .panel {
+ background: var(--panel-bg);
+ border-radius: 24px;
+ padding: 20px 16px;
+ box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.3);
+ backdrop-filter: blur(20px);
+ position: relative;
+ overflow: hidden;
+ }
+ .brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+ .brand-icon { width: 8px; height: 8px; background: var(--primary-color); border-radius: 2px; }
+ .brand-text { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 1px; }
+ .main-title { text-align: center; font-size: 20px; font-weight: 700; color: var(--text-color); margin-bottom: 16px; }
+ .main-title .highlight { color: var(--primary-color); }
+ /* 步骤指示器 */
+ .step-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; }
+ .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #ddd; transition: all 0.3s ease; }
+ .step-dot.active { background: var(--primary-color); width: 24px; border-radius: 4px; }
+ .step-dot.completed { background: var(--primary-color); }
+ /* 主按钮 */
+ .main-btn {
+ display: block;
+ width: 100%;
+ padding: 16px 24px;
+ background: var(--primary-color);
+ border: none;
+ border-radius: 14px;
+ font-size: 17px;
+ font-weight: 700;
+ color: white;
+ cursor: pointer;
+ transition: all 0.3s ease;
+ box-shadow: 0 6px 20px var(--shadow-color);
+ }
+ .main-btn:active { transform: scale(0.98); }
+ .main-btn.pulse { animation: pulse 2s infinite; }
+ @keyframes pulse { 0%, 100% { box-shadow: 0 6px 20px var(--shadow-color); } 50% { box-shadow: 0 6px 30px var(--shadow-color), 0 0 0 10px transparent; } }
+ /* 食物结果区 */
+ .food-section { margin-top: 20px; text-align: center; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+ .food-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+ .food-result { font-size: 26px; font-weight: 700; color: var(--text-color); min-height: 36px; transition: all 0.3s ease; padding: 0 10px; }
+ .food-result.changing { animation: fadeInOut 0.5s ease; }
+ @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(-10px) scale(0.9); } 50% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+ .food-tags { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+ .food-tag { padding: 4px 12px; background: rgba(255, 159, 67, 0.15); border-radius: 20px; font-size: 12px; color: var(--primary-color); }
+ body.afternoon .food-tag { background: rgba(255, 107, 157, 0.15); color: #FF6B9D; }
+ body.dinner .food-tag { background: rgba(238, 90, 82, 0.15); color: #EE5A52; }
+ /* 操作按钮组 */
+ .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+ .btn-agree { flex: 1; padding: 13px 16px; background: var(--primary-color); border: none; border-radius: 12px; font-size: 14px; font-weight: 600; color: white; cursor: pointer; transition: all 0.3s ease; }
+ .btn-agree:active { transform: scale(0.98); }
+ .btn-change { flex: 1; padding: 13px 16px; background: rgba(0,0,0,0.08); border: none; border-radius: 12px; font-size: 14px; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all 0.3s ease; }
+ .btn-change:active { transform: scale(0.98); }
+ /* 城市选择 */
+ .city-section { margin-top: 20px; padding-top: 16px; border-top: 1px dashed rgba(0,0,0,0.1); }
+ .city-label { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 10px; }
+ .city-tabs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+ .city-tab { padding: 7px 14px; background: rgba(0,0,0,0.05); border: 2px solid transparent; border-radius: 20px; font-size: 12px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.3s ease; }
+ .city-tab.active { background: white; border-color: var(--primary-color); color: var(--primary-color); }
+ /* 搜索区 - 新设计 */
+ .search-section { margin-top: 16px; }
+ .search-title { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 10px; }
+ .search-btns { display: flex; flex-direction: column; gap: 8px; }
+ .search-btn {
+ display: flex;
+ align-items: center;
+ padding: 12px 14px;
+ background: white;
+ border: 2px solid var(--primary-color);
+ border-radius: 12px;
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--primary-color);
+ cursor: pointer;
+ transition: all 0.3s ease;
+ gap: 10px;
+ }
+ .search-btn:active { background: var(--primary-color); color: white; }
+ .search-btn .icon { font-size: 18px; }
+ .search-btn .text { flex: 1; text-align: left; }
+ .search-btn .arrow { font-size: 14px; opacity: 0.6; }
+ /* 复制搜索区 */
+ .copy-search-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.08); }
+ .copy-search-title { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 10px; }
+ .copy-btns { display: flex; gap: 8px; }
+ .copy-btn { flex: 1; padding: 12px 8px; border-radius: 12px; font-size: 13px; font-weight: 600; color: white; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+ .copy-btn:active { transform: scale(0.97); }
+ .copy-btn.meituan { background: linear-gradient(135deg, #FF6B00, #FF9F43); }
+ .copy-btn.ele { background: linear-gradient(135deg, #00B5FF, #0099FF); }
+ .copy-btn .icon { font-size: 20px; }
+ .copy-btn .text { font-size: 12px; }
+ /* 地图按钮 */
+ .map-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; background: white; border: 2px solid var(--primary-color); border-radius: 12px; font-size: 14px; font-weight: 600; color: var(--primary-color); cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
+ .map-btn:active { background: var(--primary-color); color: white; }
+ /* 附近门店列表 */
+ .nearby-stores { margin-top: 16px; }
+ .nearby-title { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+ .store-list { display: flex; flex-direction: column; gap: 8px; }
+ .store-item {
+  padding: 12px;
+  background: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+ }
+ .store-item:active { border-color: var(--primary-color); background: rgba(255, 159, 67, 0.05); }
+ .store-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+ .store-name { font-size: 15px; font-weight: 600; color: var(--text-color); display: flex; align-items: center; gap: 6px; }
+ .store-distance { font-size: 12px; color: var(--primary-color); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+ .store-rating { font-size: 12px; color: #FF9500; }
+ .store-address { font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 6px; }
+ .store-nav-btn { 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 4px; 
+  padding: 6px 10px; 
+  background: var(--primary-color); 
+  color: white; 
+  border-radius: 8px; 
+  font-size: 12px; 
+  font-weight: 600; 
+  margin-top: 8px; 
+  transition: all 0.3s ease;
+ }
+ .store-nav-btn:active { transform: scale(0.95); }
+ .loading-state { text-align: center; padding: 20px; color: var(--text-muted); }
+ .loading-state .spinner { font-size: 24px; animation: spin 1s linear infinite; margin-bottom: 8px; }
+ @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+ .error-state { text-align: center; padding: 16px; color: var(--text-secondary); font-size: 13px; }
+ .retry-btn { display: inline-block; padding: 8px 16px; background: var(--primary-color); color: white; border-radius: 8px; font-size: 13px; font-weight: 600; margin-top: 10px; cursor: pointer; border: none; }
+ .retry-btn:active { transform: scale(0.95); }
+ /* 支持区 */
+ .support-section { margin-top: 16px; text-align: center; }
+ .support-btn { font-size: 12px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 8px 16px; text-decoration: underline; opacity: 0.6; transition: opacity 0.3s; }
+ .support-btn:hover { opacity: 1; }
+ /* 其他 */
+ .hidden { display: none !important; }
+ .toast {
+ position: fixed;
+ top: 50%;
+ left: 50%;
+ transform: translate(-50%, -50%);
+ background: rgba(0, 0, 0, 0.88);
+ color: white;
+ padding: 20px 28px;
+ border-radius: 14px;
+ font-size: 14px;
+ z-index: 1000;
+ opacity: 0;
+ transition: opacity 0.3s ease;
+ pointer-events: none;
+ text-align: center;
+ max-width: 280px;
+ line-height: 1.6;
+ }
+ .toast.show { opacity: 1; }
+ .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 16px; font-size: 11px; color: rgba(255, 255, 255, 0.4); background: linear-gradient(to top, rgba(26, 26, 46, 0.8), transparent); z-index: 10; }
+ </style>
+</head>
+<body class="lunch">
+ <!-- 微信内提示用浏览器打开 -->
+ <div id="wechatTip" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.85);color:#fff;padding:12px 16px;font-size:13px;text-align:center;animation:slideDown .3s ease;">
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+   <span style="font-size:18px;">⚠️</span>
+   <span>点右上角 <b>⋯</b> → <b>在浏览器中打开</b>，可直通美团/饿了么/高德APP</span>
+   <span style="cursor:pointer;margin-left:8px;opacity:0.6;" onclick="document.getElementById('wechatTip').style.display='none'">✕</span>
+  </div>
+ </div>
+ <style>@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}</style>
+ <script>if(/MicroMessenger/i.test(navigator.userAgent)){document.getElementById('wechatTip').style.display='block';}</script>
+ <div class="bg-wrapper"></div>
+ <div class="glow glow-1"></div>
+ <div class="glow glow-2"></div>
+
+ <div class="container">
+ <!-- Hero Banner - AI图片主视觉 -->
+ <div class="hero-banner">
+ <img src="data:image/jpeg;base64,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" alt="吃饭救星">
+ </div>
+
+ <div class="time-selector">
+ <button class="time-tab active" data-time="lunch">
+ <span class="icon">🍚</span>
+ 午餐
+ </button>
+ <button class="time-tab" data-time="afternoon">
+ <span class="icon">🍵</span>
+ 下午茶
+ </button>
+ <button class="time-tab" data-time="dinner">
+ <span class="icon">🍲</span>
+ 晚餐
+ </button>
+ </div>
+
+ <div class="panel">
+ <div class="brand">
+ <div class="brand-icon"></div>
+ <span class="brand-text">吃饭救星</span>
+ </div>
+ <h1 class="main-title">
+ 随机推荐<span class="highlight" id="timeText">午餐</span>吃什么
+ </h1>
+ <div class="step-indicator">
+ <div class="step-dot active" id="step1"></div>
+ <div class="step-dot" id="step2"></div>
+ </div>
+ <button class="main-btn pulse" id="mainBtn">我要吃午饭</button>
+
+ <div class="food-section hidden" id="foodSection">
+ <div class="food-label" id="foodLabel"></div>
+ <div class="food-result" id="foodResult"></div>
+ <div class="food-tags" id="foodTags"></div>
+ </div>
+
+ <div class="btn-group hidden" id="btnGroup">
+ <button class="btn-agree" id="btnAgree">就吃这个</button>
+ <button class="btn-change" id="btnChange">换一个</button>
+ </div>
+
+ <!-- 搜索结果区 -->
+ <div class="search-section hidden" id="searchSection">
+ <div class="city-section" id="citySection">
+ <div class="city-label">选择你的城市</div>
+ <div class="city-tabs" id="cityTabs"></div>
+ </div>
+ <div class="search-btns">
+ <button class="search-btn" id="btnMapNearby">
+ <span class="icon">📍</span>
+ <span class="text">地图搜索更多店铺</span>
+ <span class="arrow">›</span>
+ </button>
+ </div>
+ </div>
+
+ <!-- 附近门店列表 -->
+ <div class="nearby-stores hidden" id="nearbyStores">
+ <div class="nearby-title" id="nearbyTitle">
+ <span>📍</span>
+ <span>正在搜索附近的店...</span>
+ </div>
+ <div class="store-list" id="storeList"></div>
+ </div>
+
+ <!-- 复制搜索区 - 外卖平台 -->
+ <div class="copy-search-section hidden" id="copySearchSection">
+ <div class="copy-search-title">去外卖平台搜索</div>
+ <div class="copy-btns">
+ <button class="copy-btn meituan" id="btnCopyMeituan">
+ <span class="icon">🍔</span>
+ <span class="text">美团外卖</span>
+ </button>
+ <button class="copy-btn ele" id="btnCopyEle">
+ <span class="icon">🛵</span>
+ <span class="text">饿了么</span>
+ </button>
+ </div>
+ <button class="map-btn" id="btnMapSearch">
+ 📍 地图搜索附近餐厅
+ </button>
+ </div>
+
+ <div class="support-section">
+ <button class="support-btn" id="btnSupport">☕ 请我喝杯茶吧</button>
+ </div>
+ </div>
+ </div>
+ <div id="toast" class="toast"></div>
+ <div class="footer">吃饭救星 · 帮你解决选择困难</div>
+</body>
+<script>
+const foodDatabase = {
+ lunch: ['宫保鸡丁', '麻婆豆腐', '鱼香肉丝', '回锅肉', '水煮鱼', '酸菜鱼', '豆瓣鱼', '糖醋里脊', '辣子鸡', '毛血旺', '夫妻肺片', '棒棒鸡', '口水鸡', '蒜泥白肉', '东坡肘子', '樟茶鸭', '甜皮鸭', '老鸭汤', '酸萝卜老鸭汤', '莲藕排骨汤', '冬瓜排骨汤', '番茄炒蛋', '韭菜炒蛋', '苦瓜炒蛋', '青椒炒蛋', '西红柿蛋汤', '酸辣汤', '抄手', '馄饨', '饺子', '包子', '蛋炒饭', '煲仔饭', '盖浇饭', '黄焖鸡', '木桶饭', '浏阳蒸菜', '农家小炒肉', '小炒黄牛肉', '泡椒牛蛙', '干锅系列', '麻辣香锅', '冒菜', '串串', '火锅', '川西坝子', '海底捞', '小龙坎', '傣妹', '呷哺呷哺'],
+ afternoon: ['冰粉', '凉糕', '凉虾', '红糖冰粉', '三鲜冰粉', '糍粑冰粉', '杨枝甘露', '双皮奶', '姜撞奶', '龟苓膏', '芋泥波波', '提拉米苏', '芝士蛋糕', '马卡龙', '拿破仑', '泡芙', '曲奇', '铜锣烧', '大福', '雪媚娘', '美式咖啡', '拿铁', '卡布奇诺', '摩卡', '珍珠奶茶', '波霸奶茶', '柠檬水', '酸梅汤', '茶百道', '一点点', 'coco', '益禾堂', '古茗', '蜜雪冰城', '茶颜悦色', '喜茶', '沪上阿姨', '蛋烘糕', '狼牙土豆', '锅巴土豆', '旋风土豆', '苕皮', '冷锅串串', '驴打滚', '艾窝窝', '萨其马', '豌豆黄', '虾饺', '烧麦', '叉烧包', '蛋挞', '凤爪', '鸡蛋仔', '章鱼小丸子', '日式炸鸡', '三大炮', '叶儿粑', '糖油果子', '军屯锅盔', '钵仔糕', '桂花糕', '绿豆糕'],
+ dinner: ['重庆老火锅', '牛油火锅', '清油火锅', '鸳鸯火锅', '菌汤火锅', '番茄火锅', '火锅鸡', '火锅鱼', '火锅兔', '美蛙鱼头', '鹅肠火锅', '毛肚火锅', '鸭肠火锅', '牛肉火锅', '肥肠火锅', '小龙坎火锅', '大龙燚火锅', '蜀大侠火锅', '海底捞火锅', '巴蜀崽火锅', '楠火锅', '串串香', '冷锅串串', '热锅串串', '砂锅串串', '钢管厂五区小郡肝', '马路边边', '玉林串串', '袁记串串', '六婆串串', '冒椒火辣', '冒烤鸭', '三顾冒菜', '东北烧烤', '宜宾烧烤', '西昌烧烤', '新疆烤串', '淄博烧烤', '韩式烤肉', '日式烤肉', '烤五花肉', '烤牛肉', '烤羊肉串', '万州烤鱼', '巫山烤鱼', '纸包鱼', '烤匠', '探鱼', '麻辣小龙虾', '来凤鱼', '太安鱼', '璧山兔', '水煮肉片', '水煮牛肉', '沸腾鱼', '石锅鱼', '柴火鸡', '冷吃兔', '鲜锅兔', '老妈兔头', '干锅排骨', '干锅肥肠', '干锅牛蛙', '干锅虾', '香辣干锅', '油焖大虾', '蒜蓉虾', '清蒸虾', '十三香小龙虾', '椒盐皮皮虾', '香辣蟹', '爆炒花蛤', '日式拉面', '乌冬面', '日式咖喱饭', '石锅拌饭', '部队锅', '韩式炸鸡', '牛排套餐', '意面套餐', '披萨套餐', '麦当劳', '肯德基', '必胜客', '海底捞', '乡村基', '黄焖鸡米饭']
+};
+
+const cityList = ['南充', '成都', '重庆', '北京', '上海', '广州深圳', '西安', '长沙', '武汉', '昆明贵阳'];
+const categoryIcons = {'hotpot':'🍲','chuanchuan':'🍢','sichuan':'🥘','noodles':'🍜','bbq':'🍖','ganluo':'🍳','fastfood':'🍚','western':'🍔','dessert':'🍰','snack':'🍡','seafood':'🦐','local':'特色','soup':'🥣','rice':'🍛','breakfast':'🥟'};
+const categoryNames = {'hotpot':'火锅','chuanchuan':'串串冒菜','sichuan':'川菜馆','noodles':'面食米粉','bbq':'烧烤烤鱼','ganluo':'干锅','fastfood':'快餐','western':'西式快餐','dessert':'甜品饮品','snack':'小吃','seafood':'海鲜','local':'地方特色','soup':'汤锅炖品','rice':'米饭套餐','breakfast':'早点面点'};
+const foodCategoryMap = {'宫保鸡丁':'sichuan','麻婆豆腐':'sichuan','鱼香肉丝':'sichuan','回锅肉':'sichuan','水煮鱼':'sichuan','酸菜鱼':'sichuan','豆瓣鱼':'sichuan','糖醋里脊':'sichuan','辣子鸡':'sichuan','毛血旺':'sichuan','夫妻肺片':'sichuan','棒棒鸡':'sichuan','口水鸡':'sichuan','蒜泥白肉':'sichuan','东坡肘子':'sichuan','樟茶鸭':'sichuan','甜皮鸭':'sichuan','老鸭汤':'soup','酸萝卜老鸭汤':'soup','莲藕排骨汤':'soup','冬瓜排骨汤':'soup','番茄炒蛋':'rice','韭菜炒蛋':'rice','苦瓜炒蛋':'rice','青椒炒蛋':'rice','西红柿蛋汤':'soup','酸辣汤':'soup','抄手':'noodles','馄饨':'noodles','饺子':'breakfast','包子':'breakfast','蛋炒饭':'rice','煲仔饭':'rice','盖浇饭':'rice','黄焖鸡':'fastfood','木桶饭':'rice','浏阳蒸菜':'sichuan','农家小炒肉':'sichuan','小炒黄牛肉':'sichuan','泡椒牛蛙':'sichuan','干锅系列':'ganluo','麻辣香锅':'ganluo','冒菜':'chuanchuan','串串':'chuanchuan','火锅':'hotpot','川西坝子':'hotpot','海底捞':'hotpot','小龙坎':'hotpot','傣妹':'hotpot','呷哺呷哺':'hotpot','冰粉':'dessert','凉糕':'dessert','凉虾':'dessert','红糖冰粉':'dessert','三鲜冰粉':'dessert','糍粑冰粉':'dessert','杨枝甘露':'dessert','双皮奶':'dessert','姜撞奶':'dessert','龟苓膏':'dessert','芋泥波波':'dessert','提拉米苏':'dessert','芝士蛋糕':'dessert','马卡龙':'dessert','拿破仑':'dessert','泡芙':'dessert','曲奇':'dessert','铜锣烧':'dessert','大福':'dessert','雪媚娘':'dessert','美式咖啡':'dessert','拿铁':'dessert','卡布奇诺':'dessert','摩卡':'dessert','珍珠奶茶':'dessert','波霸奶茶':'dessert','柠檬水':'dessert','酸梅汤':'dessert','茶百道':'dessert','一点点':'dessert','coco':'dessert','益禾堂':'dessert','古茗':'dessert','蜜雪冰城':'dessert','茶颜悦色':'dessert','喜茶':'dessert','沪上阿姨':'dessert','蛋烘糕':'snack','狼牙土豆':'snack','锅巴土豆':'snack','旋风土豆':'snack','苕皮':'snack','冷锅串串':'chuanchuan','驴打滚':'snack','艾窝窝':'snack','萨其马':'snack','豌豆黄':'snack','虾饺':'snack','烧麦':'snack','叉烧包':'snack','蛋挞':'snack','凤爪':'snack','鸡蛋仔':'snack','章鱼小丸子':'dessert','日式炸鸡':'dessert','三大炮':'snack','叶儿粑':'snack','糖油果子':'snack','军屯锅盔':'snack','钵仔糕':'snack','桂花糕':'snack','绿豆糕':'snack','重庆老火锅':'hotpot','牛油火锅':'hotpot','清油火锅':'hotpot','鸳鸯火锅':'hotpot','菌汤火锅':'hotpot','番茄火锅':'hotpot','火锅鸡':'hotpot','火锅鱼':'hotpot','火锅兔':'hotpot','美蛙鱼头':'hotpot','鹅肠火锅':'hotpot','毛肚火锅':'hotpot','鸭肠火锅':'hotpot','牛肉火锅':'hotpot','肥肠火锅':'hotpot','小龙坎火锅':'hotpot','大龙燚火锅':'hotpot','蜀大侠火锅':'hotpot','海底捞火锅':'hotpot','巴蜀崽火锅':'hotpot','楠火锅':'hotpot','串串香':'chuanchuan','热锅串串':'chuanchuan','砂锅串串':'chuanchuan','钢管厂五区小郡肝':'chuanchuan','马路边边':'chuanchuan','玉林串串':'chuanchuan','袁记串串':'chuanchuan','六婆串串':'chuanchuan','冒椒火辣':'chuanchuan','冒烤鸭':'chuanchuan','三顾冒菜':'chuanchuan','东北烧烤':'bbq','宜宾烧烤':'bbq','西昌烧烤':'bbq','新疆烤串':'bbq','淄博烧烤':'bbq','韩式烤肉':'bbq','日式烤肉':'bbq','烤五花肉':'bbq','烤牛肉':'bbq','烤羊肉串':'bbq','万州烤鱼':'bbq','巫山烤鱼':'bbq','纸包鱼':'bbq','烤匠':'bbq','探鱼':'bbq','麻辣小龙虾':'seafood','来凤鱼':'sichuan','太安鱼':'sichuan','璧山兔':'sichuan','水煮肉片':'sichuan','水煮牛肉':'sichuan','沸腾鱼':'sichuan','石锅鱼':'sichuan','柴火鸡':'sichuan','冷吃兔':'sichuan','鲜锅兔':'sichuan','老妈兔头':'snack','干锅排骨':'ganluo','干锅肥肠':'ganluo','干锅牛蛙':'ganluo','干锅虾':'ganluo','香辣干锅':'ganluo','油焖大虾':'seafood','蒜蓉虾':'seafood','清蒸虾':'seafood','十三香小龙虾':'seafood','椒盐皮皮虾':'seafood','香辣蟹':'seafood','爆炒花蛤':'seafood','日式拉面':'dessert','乌冬面':'dessert','日式咖喱饭':'dessert','石锅拌饭':'dessert','部队锅':'dessert','韩式炸鸡':'dessert','牛排套餐':'western','意面套餐':'western','披萨套餐':'western','麦当劳':'western','肯德基':'western','必胜客':'western','海底捞':'hotpot','乡村基':'fastfood','黄焖鸡米饭':'fastfood'};
+
+let currentTime='lunch', currentCity='南充', currentFood='', currentCategory='';
+
+const mainBtn = document.getElementById('mainBtn');
+const timeText = document.getElementById('timeText');
+const foodSection = document.getElementById('foodSection');
+const foodLabel = document.getElementById('foodLabel');
+const foodResult = document.getElementById('foodResult');
+const foodTags = document.getElementById('foodTags');
+const btnGroup = document.getElementById('btnGroup');
+const btnAgree = document.getElementById('btnAgree');
+const btnChange = document.getElementById('btnChange');
+const citySection = document.getElementById('citySection');
+const cityTabs = document.getElementById('cityTabs');
+const searchSection = document.getElementById('searchSection');
+const copySearchSection = document.getElementById('copySearchSection');
+const btnMapNearby = document.getElementById('btnMapNearby');
+const btnMapSearch = document.getElementById('btnMapSearch');
+const btnCopyMeituan = document.getElementById('btnCopyMeituan');
+const btnCopyEle = document.getElementById('btnCopyEle');
+const btnSupport = document.getElementById('btnSupport');
+const toast = document.getElementById('toast');
+const step1 = document.getElementById('step1');
+const step2 = document.getElementById('step2');
+
+const cityCenters = {
+ '南充': '106.110698,30.837812',
+ '成都': '104.065735,30.659462',
+ '重庆': '106.504962,29.533155',
+ '北京': '116.397428,39.90923',
+ '上海': '121.473701,31.230416',
+ '广州深圳': '113.280637,23.119162',
+ '西安': '108.93977,34.341568',
+ '长沙': '112.938814,28.228209',
+ '武汉': '114.305538,30.593099',
+ '昆明贵阳': '102.712251,25.040609'
+};
+
+const amapKey = '6b4c7832aba69d33e8be7ef6d30876f1';
+
+const categorySearchKeywords = {
+ 'hotpot': '火锅',
+ 'chuanchuan': '串串香 冒菜',
+ 'sichuan': '川菜馆',
+ 'noodles': '面馆 米粉',
+ 'bbq': '烧烤 烤鱼',
+ 'ganluo': '干锅',
+ 'fastfood': '快餐',
+ 'western': '快餐',
+ 'dessert': '奶茶 甜品',
+ 'snack': '小吃',
+ 'seafood': '海鲜',
+ 'local': '特色菜',
+ 'soup': '汤锅',
+ 'rice': '盖浇饭',
+ 'breakfast': '早餐'
+};
+
+let currentLocation = null;
+let currentLocationName = '';
+
+const nearbyStores = document.getElementById('nearbyStores');
+const nearbyTitle = document.getElementById('nearbyTitle');
+const storeList = document.getElementById('storeList');
+
+const timeLabels = {
+ lunch: { text: '午餐', btnText: '我要吃午饭' },
+ afternoon: { text: '下午茶', btnText: '我要喝下午茶' },
+ dinner: { text: '晚餐', btnText: '我要吃晚饭' }
+};
+
+function init() {
+ initCityTabs();
+ const h = new Date().getHours();
+ if (h >= 14 && h < 17) switchTime('afternoon');
+ else if (h >= 17 && h < 24) switchTime('dinner');
+ else switchTime('lunch');
+}
+
+function initCityTabs() {
+ cityTabs.innerHTML = cityList.map(c => `<button class="city-tab ${c === currentCity ? 'active' : ''}" data-city="${c}">${c}</button>`).join('');
+ cityTabs.querySelectorAll('.city-tab').forEach(t => t.addEventListener('click', () => switchCity(t.dataset.city)));
+}
+
+function switchTime(time) {
+ currentTime = time;
+ document.body.className = time;
+ document.querySelectorAll('.time-tab').forEach(t => t.classList.toggle('active', t.dataset.time === time));
+ timeText.textContent = timeLabels[time].text;
+ mainBtn.textContent = timeLabels[time].btnText;
+ resetToStart();
+}
+
+function resetToStart() {
+ foodSection.classList.add('hidden');
+ btnGroup.classList.add('hidden');
+ citySection.classList.add('hidden');
+ searchSection.classList.add('hidden');
+ copySearchSection.classList.add('hidden');
+ nearbyStores.classList.add('hidden');
+ mainBtn.classList.add('pulse');
+ step1.classList.add('active');
+ step1.classList.remove('completed');
+ step2.className = 'step-dot';
+}
+
+function selectNewFood() {
+ foodResult.classList.add('changing');
+ setTimeout(() => {
+ currentFood = foodDatabase[currentTime][Math.floor(Math.random() * foodDatabase[currentTime].length)];
+ currentCategory = foodCategoryMap[currentFood] || 'sichuan';
+ foodResult.textContent = currentFood;
+ foodLabel.textContent = '建议你吃：';
+ const catName = categoryNames[currentCategory] || '美食';
+ const catIcon = categoryIcons[currentCategory] || '🍽️';
+ foodTags.innerHTML = `<span class="food-tag">${catIcon} ${catName}</span><span class="food-tag">${timeLabels[currentTime].text}推荐</span>`;
+ foodResult.classList.remove('changing');
+ step1.classList.remove('active');
+ step1.classList.add('completed');
+ step2.classList.add('active');
+ foodSection.classList.remove('hidden');
+ btnGroup.classList.remove('hidden');
+ mainBtn.classList.remove('pulse');
+ }, 100);
+}
+
+function confirmSelection() {
+ btnGroup.classList.add('hidden');
+ citySection.classList.remove('hidden');
+ searchSection.classList.remove('hidden');
+ copySearchSection.classList.remove('hidden');
+ step2.classList.remove('active');
+ step2.classList.add('completed');
+ 
+ // 开始搜索附近门店
+ nearbyStores.classList.remove('hidden');
+ searchNearbyStores();
+}
+
+function switchCity(city) {
+ currentCity = city;
+ document.querySelectorAll('.city-tab').forEach(t => t.classList.toggle('active', t.dataset.city === city));
+}
+
+// 获取位置：优先GPS，失败用城市中心
+function getLocation() {
+ return new Promise((resolve) => {
+ if (navigator.geolocation) {
+ navigator.geolocation.getCurrentPosition(
+ (position) => {
+ const lng = position.coords.longitude;
+ const lat = position.coords.latitude;
+ currentLocation = `${lng},${lat}`;
+ currentLocationName = '我的位置';
+ resolve(true);
+ },
+ (error) => {
+ console.log('GPS定位失败，使用城市中心点', error);
+ useCityCenter(resolve);
+ },
+ { timeout: 8000, enableHighAccuracy: false }
+ );
+ } else {
+ useCityCenter(resolve);
+ }
+ });
+}
+
+function useCityCenter(resolve) {
+ const center = cityCenters[currentCity] || cityCenters['南充'];
+ currentLocation = center;
+ currentLocationName = currentCity;
+ if (resolve) resolve(false);
+}
+
+// 搜索附近门店
+async function searchNearbyStores() {
+ nearbyTitle.innerHTML = '<span>📍</span><span>正在搜索附近的店...</span>';
+ storeList.innerHTML = '<div class="loading-state"><div class="spinner">🔄</div><div>正在定位并搜索...</div></div>';
+ 
+ const located = await getLocation();
+ if (!located) {
+ nearbyTitle.innerHTML = '<span>📍</span><span>使用 ' + currentLocationName + ' 位置搜索</span>';
+ }
+ 
+ // 生成搜索关键词 - 用分类词搜索更精准（高德搜菜品名几乎匹配不到店）
+ const categoryKw = categorySearchKeywords[currentCategory] || '川菜馆';
+ const keywords = categoryKw.split(' ').filter(Boolean);
+ // 如果菜品名本身就是品类词（如"火锅""串串"），加上菜品名搜
+ if(['火锅','串串','冒菜','烧烤','干锅','黄焖鸡','麻辣香锅'].includes(currentFood)){
+  keywords.unshift(currentFood);
+ }
+ 
+ try {
+ const allStores = [];
+ const seenNames = new Set();
+ 
+ // 分别搜索菜品名和分类词
+ for (const kw of keywords) {
+ const stores = await searchByKeyword(kw);
+ stores.forEach(store => {
+ if (!seenNames.has(store.name)) {
+ seenNames.add(store.name);
+ allStores.push(store);
+ }
+ });
+ }
+ 
+ // 按距离排序
+ allStores.sort((a, b) => a.distance - b.distance);
+ 
+ // 取前10个
+ const results = allStores.slice(0, 10);
+ 
+ // 更新标题，告诉用户搜的是什么类型的店
+ const catName = categoryNames[currentCategory] || '美食';
+ const catIcon = categoryIcons[currentCategory] || '🍽️';
+ nearbyTitle.innerHTML = `<span>${catIcon}</span><span>附近能吃${currentFood}的${catName}（${results.length}家）</span>`;
+ 
+ if (results.length > 0) {
+ renderStoreList(results);
+ } else {
+ storeList.innerHTML = '<div class="error-state"><div>😢 附近没找到相关店铺</div><div style="font-size:12px;margin-top:8px;color:#999;">试试用下方按钮去地图搜索</div></div>';
+ }
+ } catch (error) {
+ console.error('搜索失败', error);
+ storeList.innerHTML = `<div class="error-state"><div>😢 搜索失败</div><div style="margin-top:8px;">${error.message || '请稍后重试'}</div><button class="retry-btn" onclick="searchNearbyStores()">重新搜索</button></div>`;
+ }
+}
+
+// 按关键词搜索高德API
+function searchByKeyword(keyword) {
+ return new Promise((resolve, reject) => {
+ const url = `https://restapi.amap.com/v3/place/around?key=${amapKey}&location=${currentLocation}&keywords=${encodeURIComponent(keyword)}&city=${encodeURIComponent(currentCity)}&radius=10000&offset=15&extensions=all&types=050000|080000|100000|110000`;
+ 
+ const xhr = new XMLHttpRequest();
+ xhr.timeout = 10000;
+ 
+ xhr.onload = function() {
+ if (xhr.status === 200) {
+ try {
+ const data = JSON.parse(xhr.responseText);
+ if (data.status === '1' && data.pois && data.pois.length > 0) {
+ const stores = data.pois.map(poi => ({
+ name: poi.name || '未知店铺',
+ address: poi.address || '暂无地址',
+ distance: parseFloat(poi.distance) || 0,
+ location: poi.location || '',
+ rating: poi.biz_ext?.rating ? parseFloat(poi.biz_ext.rating) : null,
+ tel: poi.tel || ''
+ }));
+ resolve(stores);
+ } else {
+ resolve([]);
+ }
+ } catch (e) {
+ reject(new Error('解析数据失败'));
+ }
+ } else {
+ reject(new Error('网络请求失败'));
+ }
+ };
+ 
+ xhr.onerror = function() {
+ reject(new Error('网络连接失败'));
+ };
+ 
+ xhr.ontimeout = function() {
+ reject(new Error('请求超时'));
+ };
+ 
+ xhr.open('GET', url, true);
+ xhr.send();
+ });
+}
+
+// 格式化距离
+function formatDistance(meters) {
+ if (meters < 1000) {
+ return meters.toFixed(0) + 'm';
+ } else {
+ return (meters / 1000).toFixed(1) + 'km';
+ }
+}
+
+// 渲染店铺列表
+function renderStoreList(stores) {
+ nearbyTitle.innerHTML = `<span>📍</span><span>找到 ${stores.length} 家附近店铺</span>`;
+ 
+ storeList.innerHTML = stores.map((store, index) => `
+ <div class="store-item" onclick="navigateToStore(${index})" data-index="${index}">
+ <div class="store-header">
+ <div class="store-name">
+ <span>🏠</span>
+ <span>${store.name}</span>
+ </div>
+ <div style="display:flex;align-items:center;gap:8px;">
+ ${store.rating ? `<span class="store-rating">⭐ ${store.rating}</span>` : ''}
+ <span class="store-distance">📏 ${formatDistance(store.distance)}</span>
+ </div>
+ </div>
+ <div class="store-address">
+ <span>📍</span>
+ <span>${store.address}</span>
+ </div>
+ ${store.location ? `<div class="store-nav-btn" onclick="event.stopPropagation();navigateToStore(${index})">🧭 导航到这家店</div>` : ''}
+ </div>
+ `).join('');
+ 
+ // 保存店铺数据供导航使用
+ window.currentStores = stores;
+}
+
+// 导航到指定店铺
+function navigateToStore(index) {
+ const store = window.currentStores[index];
+ if (!store || !store.location) {
+ showToast('无法获取店铺位置');
+ return;
+ }
+ 
+ const [lng, lat] = store.location.split(',');
+ const navUrl = `https://uri.amap.com/navigation?to=${lng},${lat},${encodeURIComponent(store.name)}&mode=car&callnative=1`;
+ 
+ // 尝试直接打开导航，如果失败则打开地图页面
+ window.location.href = navUrl;
+}
+
+// 复制到剪贴板并提示
+async function copyToClipboard(text, platform) {
+ try {
+ await navigator.clipboard.writeText(text);
+ showToast(`已复制"${text}"\n打开${platform}粘贴搜索`);
+ } catch (err) {
+ // 降级方案：使用旧方法
+ const textarea = document.createElement('textarea');
+ textarea.value = text;
+ textarea.style.position = 'fixed';
+ textarea.style.opacity = '0';
+ document.body.appendChild(textarea);
+ textarea.select();
+ try {
+ document.execCommand('copy');
+ showToast(`已复制"${text}"\n打开${platform}粘贴搜索`);
+ } catch (e) {
+ showToast('复制失败，请手动长按复制');
+ }
+ document.body.removeChild(textarea);
+ }
+}
+
+// 高德地图H5搜索（微信内可用）
+function openAmapSearch(keyword) {
+ const cityCode={'南充':'0817','成都':'028','重庆':'023','北京':'010','上海':'021','广州':'020','深圳':'0755','西安':'029','长沙':'0731','武汉':'027','昆明':'0871','贵阳':'0851'};
+ const cc=cityCode[currentCity]||'028';
+ const url = `https://m.amap.com/search/mapview/keywords/${encodeURIComponent(keyword)}/city/${cc}`;
+ window.open(url,'_blank');
+}
+
+// 地图搜索更多店铺
+btnMapNearby.addEventListener('click', () => {
+ const keyword = currentFood + ' ' + currentCity;
+ openAmapApp(keyword);
+});
+
+// 地图搜索附近餐厅 - 唤起高德地图APP
+btnMapSearch.addEventListener('click', () => {
+ const keyword = currentFood + ' ' + currentCity;
+ openAmapApp(keyword);
+});
+
+// 唤起高德地图APP搜索，失败则回退H5
+function openAmapApp(keyword) {
+ // 先尝试唤起高德APP
+ const appUrl = `androidamap://search?keyword=${encodeURIComponent(keyword)}&src=吃饭救星`;
+ const h5Url = `https://m.amap.com/search/mapview/keywords/${encodeURIComponent(keyword)}/city/${getCityCode()}`;
+ 
+ // 尝试唤起APP
+ const start = Date.now();
+ window.location.href = appUrl;
+ // 如果2秒内没有跳转（APP没装），回退H5
+ setTimeout(() => {
+  if (Date.now() - start < 2000) {
+   window.open(h5Url, '_blank');
+  }
+ }, 1500);
+}
+
+function getCityCode() {
+ const cc = {'南充':'0817','成都':'028','重庆':'023','北京':'010','上海':'021','广州':'020','深圳':'0755','西安':'029','长沙':'0731','武汉':'027','昆明':'0871','贵阳':'0851'};
+ return cc[currentCity] || '028';
+}
+
+// 美团外卖 - 唤APP > 跳H5搜索 > 复制
+btnCopyMeituan.addEventListener('click', () => {
+ const food = currentFood;
+ // 方案1：唤起美团APP
+ const appUrl = `imeituan://www.meituan.com/search?query=${encodeURIComponent(food)}`;
+ // 方案2：美团外卖H5搜索页（微信里能打开，可能需要登录）
+ const h5Url = `https://h5.waimai.meituan.com/waimai/mindex/search?keyword=${encodeURIComponent(food)}`;
+ 
+ // 判断是否微信浏览器
+ const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+ if(isWechat){
+  // 微信内：直接跳H5搜索页（微信拦截APP链接，不浪费时间）
+  window.open(h5Url, '_blank');
+ } else {
+  // 非微信：先唤APP，失败跳H5
+  const start = Date.now();
+  window.location.href = appUrl;
+  setTimeout(() => {
+   if(Date.now() - start < 2500){ window.open(h5Url, '_blank'); }
+  }, 2000);
+ }
+});
+
+// 饿了么 - 唤APP > 跳H5搜索 > 复制
+btnCopyEle.addEventListener('click', () => {
+ const food = currentFood;
+ // 方案1：唤起饿了么APP
+ const appUrl = `eleme://home?searchKeyword=${encodeURIComponent(food)}`;
+ // 方案2：饿了么H5搜索页
+ const h5Url = `https://m.ele.me/search?keyword=${encodeURIComponent(food)}`;
+ 
+ const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+ if(isWechat){
+  // 微信内：直接跳H5搜索页
+  window.open(h5Url, '_blank');
+ } else {
+  // 非微信：先唤APP，失败跳H5
+  const start = Date.now();
+  window.location.href = appUrl;
+  setTimeout(() => {
+   if(Date.now() - start < 2500){ window.open(h5Url, '_blank'); }
+  }, 2000);
+ }
+});
+
+function showToast(msg, dur = 2500) {
+ toast.textContent = msg;
+ toast.classList.add('show');
+ setTimeout(() => toast.classList.remove('show'), dur);
+}
+
+document.querySelectorAll('.time-tab').forEach(t => t.addEventListener('click', () => switchTime(t.dataset.time)));
+mainBtn.addEventListener('click', () => selectNewFood());
+btnChange.addEventListener('click', () => selectNewFood());
+btnAgree.addEventListener('click', () => confirmSelection());
+btnSupport.addEventListener('click', () => showToast('☕ 如果觉得有用，可以请我喝杯茶~\n感谢你的支持！🥰'));
+
+init();
+document.addEventListener('dblclick', e => e.preventDefault());
+</script>
+</html>
